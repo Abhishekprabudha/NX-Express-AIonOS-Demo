@@ -9,7 +9,7 @@ const captions = {
 };
 
 let selectedNarrationVoice = null;
-let narrationEnabled = true;
+let narrationEnabled = false;
 let activeSectionId = null;
 let currentNarration = null;
 let narrationKeepAliveTimer = null;
@@ -189,7 +189,9 @@ if ('speechSynthesis' in window) {
 const tourBtn = document.getElementById('tourBtn');
 const pauseNarrationBtn = document.getElementById('pauseNarrationBtn');
 const tourSections = ['hero', 'warehouse', 'yard', 'twin', 'pricing', 'pod', 'close'];
-const TOUR_HERO_HOLD_MS = 2000;
+const TOUR_HERO_MIN_MS = 6000;
+const TOUR_SECTION_FOCUS_DELAY_MS = 1200;
+const TOUR_TWIN_HOVER_CLASS = 'tour-map-hover';
 let tourState = {
   active: false,
   index: -1,
@@ -210,26 +212,64 @@ function clearTourFocusTimer() {
   tourState.focusTimeoutId = null;
 }
 
+function setTwinMapHover(enabled) {
+  const twinStage = document.querySelector('#twin .twin-stage');
+  if (!twinStage) return;
+  twinStage.classList.toggle(TOUR_TWIN_HOVER_CLASS, enabled);
+}
+
 function endTour() {
   clearTourTimer();
   clearTourFocusTimer();
+  setTwinMapHover(false);
+  narrationEnabled = false;
+  stopNarration();
   tourState = { active: false, index: -1, timeoutId: null, focusTimeoutId: null, paused: false };
   tourBtn.textContent = 'Play guided tour';
+}
+
+function scrollTourSection(sectionId) {
+  const sectionEl = document.getElementById(sectionId);
+  if (!sectionEl) return;
+
+  if (sectionId !== 'hero') {
+    sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  const topbarHeight = document.querySelector('.topbar')?.offsetHeight || 0;
+  const sectionTop = sectionEl.offsetTop;
+  const sectionHeight = sectionEl.offsetHeight;
+  const availableHeight = window.innerHeight - topbarHeight;
+  const centerOffset = Math.max((availableHeight - sectionHeight) / 2, 0);
+  const targetTop = Math.max(sectionTop - topbarHeight - centerOffset, 0);
+  window.scrollTo({ top: targetTop, behavior: 'smooth' });
 }
 
 function scheduleTourStep() {
   clearTourTimer();
   clearTourFocusTimer();
   const activeTourSectionId = tourSections[tourState.index];
+  setTwinMapHover(activeTourSectionId === 'twin');
   const narrationDurationMs = Math.max((detectNarrative(activeTourSectionId).length / 13) * 1000, TOUR_SECTION_MS);
-  const sectionDurationMs = Math.ceil(narrationDurationMs * SECTION_BUFFER_MULTIPLIER);
+  const bufferedDurationMs = Math.ceil(narrationDurationMs * SECTION_BUFFER_MULTIPLIER);
+  const sectionDurationMs = activeTourSectionId === 'hero'
+    ? Math.max(TOUR_HERO_MIN_MS, bufferedDurationMs)
+    : bufferedDurationMs;
   tourState.focusTimeoutId = window.setTimeout(() => {
     if (!tourState.active || tourState.paused) return;
     const sectionEl = document.getElementById(activeTourSectionId);
-    const sectionVideo = sectionEl?.querySelector('.showcase-video');
-    if (!sectionVideo) return;
-    sectionVideo.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, TOUR_HERO_HOLD_MS);
+    if (!sectionEl) return;
+
+    if (activeTourSectionId === 'twin') {
+      const twinStage = sectionEl.querySelector('.twin-stage');
+      twinStage?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const sectionVideo = sectionEl.querySelector('.showcase-video');
+    sectionVideo?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, TOUR_SECTION_FOCUS_DELAY_MS);
   tourState.timeoutId = window.setTimeout(() => {
     if (!tourState.active || tourState.paused) return;
     runTourStep();
@@ -244,7 +284,7 @@ function runTourStep() {
   }
 
   const sectionId = tourSections[tourState.index];
-  document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scrollTourSection(sectionId);
   activeSectionId = sectionId;
   updateCaptionAndNarration(sectionId);
   tourBtn.textContent = 'Guided tour playing';
@@ -269,15 +309,21 @@ function toggleNarrationPause() {
 
   if (!narrationPausedByUser) {
     narrationPausedByUser = true;
-    stopNarration();
     pauseTour();
+    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+      window.speechSynthesis.pause();
+    }
     if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Resume narration';
     return;
   }
 
   narrationPausedByUser = false;
   resumeTour();
-  if (activeSectionId) updateCaptionAndNarration(activeSectionId);
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+  } else if (activeSectionId && !currentNarration) {
+    updateCaptionAndNarration(activeSectionId);
+  }
   if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
 }
 
@@ -285,6 +331,7 @@ tourBtn.addEventListener('click', () => {
   narrationEnabled = true;
   narrationPausedByUser = false;
   stopNarration();
+  setTwinMapHover(false);
   tourState = { active: true, index: -1, timeoutId: null, focusTimeoutId: null, paused: false };
   if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
   runTourStep();

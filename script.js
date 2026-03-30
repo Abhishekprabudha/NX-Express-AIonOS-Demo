@@ -10,6 +10,12 @@ const captions = {
 
 let selectedNarrationVoice = null;
 let narrationEnabled = true;
+let activeSectionId = null;
+let currentNarration = null;
+let narrationKeepAliveTimer = null;
+
+const TOUR_SECTION_MS = 9000;
+const MIN_RESUME_CHARS = 24;
 
 function detectNarrative(id) {
   const scripted = captions[id];
@@ -49,6 +55,30 @@ function ensureNarrationVoice() {
   selectedNarrationVoice = selectNarrationVoice();
 }
 
+function startNarrationKeepAlive() {
+  if (!('speechSynthesis' in window)) return;
+  stopNarrationKeepAlive();
+  narrationKeepAliveTimer = window.setInterval(() => {
+    if (!window.speechSynthesis.speaking || window.speechSynthesis.paused) return;
+    window.speechSynthesis.pause();
+    window.speechSynthesis.resume();
+  }, 8000);
+}
+
+function stopNarrationKeepAlive() {
+  if (!narrationKeepAliveTimer) return;
+  clearInterval(narrationKeepAliveTimer);
+  narrationKeepAliveTimer = null;
+}
+
+function stopNarration(manual = true) {
+  if (!('speechSynthesis' in window)) return;
+  if (currentNarration) currentNarration.manualStop = manual;
+  stopNarrationKeepAlive();
+  window.speechSynthesis.cancel();
+  if (manual) currentNarration = null;
+}
+
 function speakNarrative(id) {
   if (!narrationEnabled || !('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
   ensureNarrationVoice();
@@ -56,14 +86,65 @@ function speakNarrative(id) {
   const text = detectNarrative(id);
   if (!text) return;
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = selectedNarrationVoice?.lang || 'en-GB';
-  utterance.voice = selectedNarrationVoice || null;
-  utterance.pitch = 0.92;
-  utterance.rate = 0.95;
+  stopNarration();
+  const narrationState = {
+    id,
+    text,
+    startTime: performance.now(),
+    charIndex: 0,
+    manualStop: false,
+    retries: 0,
+  };
+  currentNarration = narrationState;
 
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
+  const speakFrom = (startIndex = 0) => {
+    const remaining = narrationState.text.slice(startIndex).trimStart();
+    if (!remaining) {
+      currentNarration = null;
+      stopNarrationKeepAlive();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(remaining);
+    utterance.lang = selectedNarrationVoice?.lang || 'en-GB';
+    utterance.voice = selectedNarrationVoice || null;
+    utterance.pitch = 0.92;
+    utterance.rate = 0.95;
+
+    utterance.onstart = () => {
+      narrationState.startTime = performance.now();
+      startNarrationKeepAlive();
+    };
+
+    utterance.onboundary = (event) => {
+      if (event.name === 'word') {
+        narrationState.charIndex = Math.min(narrationState.text.length, startIndex + event.charIndex);
+      }
+    };
+
+    utterance.onend = () => {
+      stopNarrationKeepAlive();
+      if (narrationState.manualStop || currentNarration !== narrationState) return;
+
+      const elapsedMs = performance.now() - narrationState.startTime;
+      const expectedMs = Math.max((remaining.length / 13) * 1000, 700);
+      const stoppedEarly = elapsedMs < expectedMs * 0.55;
+      const nextIndex = Math.max(narrationState.charIndex, startIndex);
+      const resumeText = narrationState.text.slice(nextIndex).trim();
+
+      if (stoppedEarly && resumeText.length > MIN_RESUME_CHARS && narrationState.retries < 2) {
+        narrationState.retries += 1;
+        requestAnimationFrame(() => speakFrom(nextIndex));
+        return;
+      }
+
+      currentNarration = null;
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  speakFrom(0);
 }
 
 function updateCaptionAndNarration(id) {
@@ -75,14 +156,18 @@ function updateCaptionAndNarration(id) {
 }
 
 const observer = new IntersectionObserver((entries) => {
-  entries.forEach((entry) => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
-      const id = entry.target.id;
-      updateCaptionAndNarration(id);
-    }
-  });
-}, { threshold: 0.3 });
+  const visible = entries.filter((entry) => entry.isIntersecting);
+  if (!visible.length) return;
+
+  visible.forEach((entry) => entry.target.classList.add('visible'));
+  visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+  const nextId = visible[0].target.id;
+  if (!nextId || nextId === activeSectionId) return;
+
+  activeSectionId = nextId;
+  updateCaptionAndNarration(nextId);
+}, { threshold: [0.3, 0.55, 0.75] });
 
 document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
 
@@ -94,29 +179,90 @@ if ('speechSynthesis' in window) {
 }
 
 const tourBtn = document.getElementById('tourBtn');
-let tourTimer = null;
+const pauseNarrationBtn = document.getElementById('pauseNarrationBtn');
+const tourSections = ['hero', 'warehouse', 'yard', 'twin', 'pricing', 'pod', 'close'];
+let tourState = {
+  active: false,
+  index: -1,
+  timeoutId: null,
+  paused: false,
+};
+
+function clearTourTimer() {
+  if (!tourState.timeoutId) return;
+  clearTimeout(tourState.timeoutId);
+  tourState.timeoutId = null;
+}
+
+function endTour() {
+  clearTourTimer();
+  tourState = { active: false, index: -1, timeoutId: null, paused: false };
+  tourBtn.textContent = 'Play guided tour';
+}
+
+function scheduleTourStep() {
+  clearTourTimer();
+  tourState.timeoutId = window.setTimeout(() => {
+    if (!tourState.active || tourState.paused) return;
+    runTourStep();
+  }, TOUR_SECTION_MS);
+}
+
+function runTourStep() {
+  tourState.index += 1;
+  if (tourState.index >= tourSections.length) {
+    endTour();
+    return;
+  }
+
+  const sectionId = tourSections[tourState.index];
+  document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  activeSectionId = sectionId;
+  updateCaptionAndNarration(sectionId);
+  tourBtn.textContent = 'Guided tour playing';
+  scheduleTourStep();
+}
+
+function pauseTour() {
+  if (!tourState.active) return;
+  tourState.paused = true;
+  clearTourTimer();
+}
+
+function resumeTour() {
+  if (!tourState.active || !tourState.paused) return;
+  tourState.paused = false;
+  scheduleTourStep();
+}
+
+function toggleNarrationPause() {
+  if (!('speechSynthesis' in window)) return;
+
+  if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+    window.speechSynthesis.pause();
+    pauseTour();
+    if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Resume narration';
+    return;
+  }
+
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+    resumeTour();
+    if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
+  }
+}
 
 tourBtn.addEventListener('click', () => {
-  const sections = ['hero', 'warehouse', 'yard', 'twin', 'pricing', 'pod', 'close'];
-  let index = 0;
   narrationEnabled = true;
-  clearInterval(tourTimer);
-  document.getElementById(sections[0]).scrollIntoView({ behavior: 'smooth', block: 'start' });
-  updateCaptionAndNarration(sections[0]);
-  tourBtn.textContent = 'Guided tour playing';
-  tourTimer = setInterval(() => {
-    index += 1;
-    if (index >= sections.length) {
-      clearInterval(tourTimer);
-      tourBtn.textContent = 'Play guided tour';
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      return;
-    }
-    const sectionId = sections[index];
-    document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth', block: 'start' });
-    updateCaptionAndNarration(sectionId);
-  }, 9000);
+  stopNarration();
+  tourState = { active: true, index: -1, timeoutId: null, paused: false };
+  if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
+  runTourStep();
 });
+
+if (pauseNarrationBtn) {
+  pauseNarrationBtn.addEventListener('click', toggleNarrationPause);
+}
 
 function drawAxes(ctx, width, height, padding, yTicks, xTicks = []) {
   ctx.strokeStyle = 'rgba(255,255,255,0.12)';

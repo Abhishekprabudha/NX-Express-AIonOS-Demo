@@ -59,6 +59,9 @@ function ensureNarrationVoice() {
 
 function startNarrationKeepAlive() {
   if (!('speechSynthesis' in window)) return;
+  const ua = navigator.userAgent || '';
+  const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR/i.test(ua);
+  if (!isSafari) return;
   stopNarrationKeepAlive();
   narrationKeepAliveTimer = window.setInterval(() => {
     if (!window.speechSynthesis.speaking || window.speechSynthesis.paused) return;
@@ -189,7 +192,7 @@ if ('speechSynthesis' in window) {
 const tourBtn = document.getElementById('tourBtn');
 const pauseNarrationBtn = document.getElementById('pauseNarrationBtn');
 const tourSections = ['hero', 'warehouse', 'yard', 'twin', 'pricing', 'pod', 'close'];
-const TOUR_HERO_MIN_MS = 6000;
+const TOUR_HERO_MIN_MS = 10000;
 const TOUR_SECTION_FOCUS_DELAY_MS = 1200;
 const TOUR_TWIN_HOVER_CLASS = 'tour-map-hover';
 let tourState = {
@@ -232,17 +235,10 @@ function scrollTourSection(sectionId) {
   const sectionEl = document.getElementById(sectionId);
   if (!sectionEl) return;
 
-  if (sectionId !== 'hero') {
-    sectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    return;
-  }
-
   const topbarHeight = document.querySelector('.topbar')?.offsetHeight || 0;
-  const sectionTop = sectionEl.offsetTop;
-  const sectionHeight = sectionEl.offsetHeight;
-  const availableHeight = window.innerHeight - topbarHeight;
-  const centerOffset = Math.max((availableHeight - sectionHeight) / 2, 0);
-  const targetTop = Math.max(sectionTop - topbarHeight - centerOffset, 0);
+  const sectionTop = sectionEl.getBoundingClientRect().top + window.scrollY;
+  const heroOffset = sectionId === 'hero' ? 8 : 0;
+  const targetTop = Math.max(sectionTop - topbarHeight - heroOffset, 0);
   window.scrollTo({ top: targetTop, behavior: 'smooth' });
 }
 

@@ -1,0 +1,11 @@
+{
+  "total_frames": 1800,
+  "total_vehicles": 52,
+  "vehicles_by_minute": {
+    "1": 12,
+    "2": 9,
+    "3": 8,
+    "4": 15,
+    "5": 8
+  }
+}

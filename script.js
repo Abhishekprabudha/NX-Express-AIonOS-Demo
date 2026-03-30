@@ -18,6 +18,13 @@ let narrationPausedByUser = false;
 const TOUR_SECTION_MS = 9000;
 const MIN_RESUME_CHARS = 24;
 const SECTION_BUFFER_MULTIPLIER = 1.15;
+const SECTION_SWITCH_DEBOUNCE_MS = 420;
+const MIN_NARRATION_RESTART_MS = 1200;
+const KEEP_ALIVE_MIN_CHARS = 260;
+
+let pendingSectionActivationId = null;
+let sectionActivationTimer = null;
+let lastNarrationStartAt = 0;
 
 function detectNarrative(id) {
   const scripted = captions[id];
@@ -57,8 +64,9 @@ function ensureNarrationVoice() {
   selectedNarrationVoice = selectNarrationVoice();
 }
 
-function startNarrationKeepAlive() {
+function startNarrationKeepAlive(textLength = 0) {
   if (!('speechSynthesis' in window)) return;
+  if (textLength < KEEP_ALIVE_MIN_CHARS) return;
   const ua = navigator.userAgent || '';
   const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR/i.test(ua);
   if (!isSafari) return;
@@ -67,7 +75,7 @@ function startNarrationKeepAlive() {
     if (!window.speechSynthesis.speaking || window.speechSynthesis.paused) return;
     window.speechSynthesis.pause();
     window.speechSynthesis.resume();
-  }, 8000);
+  }, 16000);
 }
 
 function stopNarrationKeepAlive() {
@@ -95,6 +103,13 @@ function speakNarrative(id) {
 
   const text = detectNarrative(id);
   if (!text) return;
+  if (
+    currentNarration
+    && currentNarration.id === id
+    && (performance.now() - lastNarrationStartAt) < MIN_NARRATION_RESTART_MS
+  ) {
+    return;
+  }
 
   stopNarration();
   const narrationState = {
@@ -123,7 +138,8 @@ function speakNarrative(id) {
 
     utterance.onstart = () => {
       narrationState.startTime = performance.now();
-      startNarrationKeepAlive();
+      lastNarrationStartAt = narrationState.startTime;
+      startNarrationKeepAlive(narrationState.text.length - startIndex);
     };
 
     utterance.onboundary = (event) => {
@@ -166,6 +182,21 @@ function updateCaptionAndNarration(id) {
   speakNarrative(id);
 }
 
+function activateSection(id) {
+  if (!id || id === activeSectionId) return;
+  activeSectionId = id;
+  updateCaptionAndNarration(id);
+}
+
+function queueSectionActivation(id) {
+  pendingSectionActivationId = id;
+  if (sectionActivationTimer) clearTimeout(sectionActivationTimer);
+  sectionActivationTimer = window.setTimeout(() => {
+    sectionActivationTimer = null;
+    activateSection(pendingSectionActivationId);
+  }, SECTION_SWITCH_DEBOUNCE_MS);
+}
+
 const observer = new IntersectionObserver((entries) => {
   const visible = entries.filter((entry) => entry.isIntersecting);
   if (!visible.length) return;
@@ -174,10 +205,8 @@ const observer = new IntersectionObserver((entries) => {
   visible.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
 
   const nextId = visible[0].target.id;
-  if (!nextId || nextId === activeSectionId) return;
-
-  activeSectionId = nextId;
-  updateCaptionAndNarration(nextId);
+  if (!nextId) return;
+  queueSectionActivation(nextId);
 }, { threshold: [0.3, 0.55, 0.75] });
 
 document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));

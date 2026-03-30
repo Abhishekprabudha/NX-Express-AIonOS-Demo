@@ -8,17 +8,87 @@ const captions = {
   close: 'The pilot ask is simple: instrument one flow, prove the operational lift, and scale from evidence.'
 };
 
+let selectedNarrationVoice = null;
+let narrationEnabled = true;
+
+function detectNarrative(id) {
+  const scripted = captions[id];
+  if (scripted) return scripted;
+
+  const section = document.getElementById(id);
+  if (!section) return captions.hero;
+  const heading = section.querySelector('h1, h2')?.textContent?.trim() || '';
+  const paragraph = section.querySelector('p')?.textContent?.trim() || '';
+  return [heading, paragraph].filter(Boolean).join('. ') || captions.hero;
+}
+
+function scoreBritishMaleVoice(voice) {
+  const name = (voice.name || '').toLowerCase();
+  const lang = (voice.lang || '').toLowerCase();
+  let score = 0;
+  if (lang.startsWith('en-gb')) score += 5;
+  if (lang.startsWith('en')) score += 1;
+  if (name.includes('male') || name.includes('man')) score += 3;
+  if (name.includes('daniel') || name.includes('thomas') || name.includes('david')) score += 2;
+  if (name.includes('uk') || name.includes('british') || name.includes('england')) score += 2;
+  return score;
+}
+
+function selectNarrationVoice() {
+  const synth = window.speechSynthesis;
+  if (!synth) return null;
+  const voices = synth.getVoices();
+  if (!voices.length) return null;
+
+  const ranked = [...voices].sort((a, b) => scoreBritishMaleVoice(b) - scoreBritishMaleVoice(a));
+  return ranked[0] || null;
+}
+
+function ensureNarrationVoice() {
+  if (selectedNarrationVoice) return;
+  selectedNarrationVoice = selectNarrationVoice();
+}
+
+function speakNarrative(id) {
+  if (!narrationEnabled || !('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
+  ensureNarrationVoice();
+
+  const text = detectNarrative(id);
+  if (!text) return;
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = selectedNarrationVoice?.lang || 'en-GB';
+  utterance.voice = selectedNarrationVoice || null;
+  utterance.pitch = 0.92;
+  utterance.rate = 0.95;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+function updateCaptionAndNarration(id) {
+  document.getElementById('captionText').textContent = detectNarrative(id);
+  speakNarrative(id);
+}
+
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
     if (entry.isIntersecting) {
       entry.target.classList.add('visible');
       const id = entry.target.id;
-      document.getElementById('captionText').textContent = captions[id] || captions.hero;
+      updateCaptionAndNarration(id);
     }
   });
 }, { threshold: 0.3 });
 
 document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    selectedNarrationVoice = selectNarrationVoice();
+  };
+  selectedNarrationVoice = selectNarrationVoice();
+}
 
 const tourBtn = document.getElementById('tourBtn');
 let tourTimer = null;
@@ -26,17 +96,22 @@ let tourTimer = null;
 tourBtn.addEventListener('click', () => {
   const sections = ['hero', 'warehouse', 'yard', 'twin', 'pricing', 'pod', 'close'];
   let index = 0;
+  narrationEnabled = true;
   clearInterval(tourTimer);
   document.getElementById(sections[0]).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  updateCaptionAndNarration(sections[0]);
   tourBtn.textContent = 'Guided tour playing';
   tourTimer = setInterval(() => {
     index += 1;
     if (index >= sections.length) {
       clearInterval(tourTimer);
       tourBtn.textContent = 'Play guided tour';
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       return;
     }
-    document.getElementById(sections[index]).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const sectionId = sections[index];
+    document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    updateCaptionAndNarration(sectionId);
   }, 9000);
 });
 

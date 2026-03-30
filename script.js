@@ -14,6 +14,7 @@ let activeSectionId = null;
 let currentNarration = null;
 let narrationKeepAliveTimer = null;
 let narrationPausedByUser = false;
+let tourNarrationActive = false;
 
 const TOUR_SECTION_MS = 9000;
 const MIN_RESUME_CHARS = 24;
@@ -173,12 +174,50 @@ function speakNarrative(id) {
   speakFrom(0);
 }
 
-function updateCaptionAndNarration(id) {
+function speakTourNarrative() {
+  if (
+    !narrationEnabled
+    || narrationPausedByUser
+    || !('speechSynthesis' in window)
+    || !('SpeechSynthesisUtterance' in window)
+  ) return;
+  ensureNarrationVoice();
+  tourNarrationActive = true;
+
+  const text = tourSections.map((sectionId) => detectNarrative(sectionId)).join(' ');
+  if (!text.trim()) return;
+
+  stopNarration();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = selectedNarrationVoice?.lang || 'en-GB';
+  utterance.voice = selectedNarrationVoice || null;
+  utterance.pitch = 0.92;
+  utterance.rate = 0.95;
+
+  utterance.onstart = () => {
+    lastNarrationStartAt = performance.now();
+    startNarrationKeepAlive(text.length);
+  };
+
+  utterance.onend = () => {
+    stopNarrationKeepAlive();
+    tourNarrationActive = false;
+    if (currentNarration && currentNarration.id === 'tour') {
+      currentNarration = null;
+    }
+  };
+
+  currentNarration = { id: 'tour', manualStop: false };
+  window.speechSynthesis.speak(utterance);
+}
+
+function updateCaptionAndNarration(id, options = {}) {
+  const { speak = true } = options;
   const captionTextEl = document.getElementById('captionText');
   if (captionTextEl) {
     captionTextEl.textContent = detectNarrative(id);
   }
-  if (narrationPausedByUser) return;
+  if (!speak || narrationPausedByUser) return;
   speakNarrative(id);
 }
 
@@ -256,6 +295,7 @@ function endTour() {
   setTwinMapHover(false);
   narrationEnabled = false;
   stopNarration();
+  tourNarrationActive = false;
   tourState = { active: false, index: -1, timeoutId: null, focusTimeoutId: null, paused: false };
   tourBtn.textContent = 'Play guided tour';
 }
@@ -311,7 +351,7 @@ function runTourStep() {
   const sectionId = tourSections[tourState.index];
   scrollTourSection(sectionId);
   activeSectionId = sectionId;
-  updateCaptionAndNarration(sectionId);
+  updateCaptionAndNarration(sectionId, { speak: !tourNarrationActive });
   tourBtn.textContent = 'Guided tour playing';
   scheduleTourStep();
 }
@@ -347,7 +387,11 @@ function toggleNarrationPause() {
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
   } else if (activeSectionId && !currentNarration) {
-    updateCaptionAndNarration(activeSectionId);
+    if (tourState.active && tourNarrationActive) {
+      speakTourNarrative();
+    } else {
+      updateCaptionAndNarration(activeSectionId);
+    }
   }
   if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
 }
@@ -357,6 +401,7 @@ tourBtn.addEventListener('click', () => {
   narrationPausedByUser = false;
   stopNarration();
   setTwinMapHover(false);
+  speakTourNarrative();
   tourState = { active: true, index: -1, timeoutId: null, focusTimeoutId: null, paused: false };
   if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
   runTourStep();

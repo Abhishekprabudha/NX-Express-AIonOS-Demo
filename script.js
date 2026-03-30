@@ -13,9 +13,11 @@ let narrationEnabled = true;
 let activeSectionId = null;
 let currentNarration = null;
 let narrationKeepAliveTimer = null;
+let narrationPausedByUser = false;
 
 const TOUR_SECTION_MS = 9000;
 const MIN_RESUME_CHARS = 24;
+const SECTION_BUFFER_MULTIPLIER = 1.15;
 
 function detectNarrative(id) {
   const scripted = captions[id];
@@ -80,7 +82,12 @@ function stopNarration(manual = true) {
 }
 
 function speakNarrative(id) {
-  if (!narrationEnabled || !('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
+  if (
+    !narrationEnabled
+    || narrationPausedByUser
+    || !('speechSynthesis' in window)
+    || !('SpeechSynthesisUtterance' in window)
+  ) return;
   ensureNarrationVoice();
 
   const text = detectNarrative(id);
@@ -152,6 +159,7 @@ function updateCaptionAndNarration(id) {
   if (captionTextEl) {
     captionTextEl.textContent = detectNarrative(id);
   }
+  if (narrationPausedByUser) return;
   speakNarrative(id);
 }
 
@@ -202,10 +210,13 @@ function endTour() {
 
 function scheduleTourStep() {
   clearTourTimer();
+  const activeTourSectionId = tourSections[tourState.index];
+  const narrationDurationMs = Math.max((detectNarrative(activeTourSectionId).length / 13) * 1000, TOUR_SECTION_MS);
+  const sectionDurationMs = Math.ceil(narrationDurationMs * SECTION_BUFFER_MULTIPLIER);
   tourState.timeoutId = window.setTimeout(() => {
     if (!tourState.active || tourState.paused) return;
     runTourStep();
-  }, TOUR_SECTION_MS);
+  }, sectionDurationMs);
 }
 
 function runTourStep() {
@@ -238,22 +249,23 @@ function resumeTour() {
 function toggleNarrationPause() {
   if (!('speechSynthesis' in window)) return;
 
-  if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-    window.speechSynthesis.pause();
+  if (!narrationPausedByUser) {
+    narrationPausedByUser = true;
+    stopNarration();
     pauseTour();
     if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Resume narration';
     return;
   }
 
-  if (window.speechSynthesis.paused) {
-    window.speechSynthesis.resume();
-    resumeTour();
-    if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
-  }
+  narrationPausedByUser = false;
+  resumeTour();
+  if (activeSectionId) updateCaptionAndNarration(activeSectionId);
+  if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
 }
 
 tourBtn.addEventListener('click', () => {
   narrationEnabled = true;
+  narrationPausedByUser = false;
   stopNarration();
   tourState = { active: true, index: -1, timeoutId: null, paused: false };
   if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';

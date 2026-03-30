@@ -189,10 +189,12 @@ if ('speechSynthesis' in window) {
 const tourBtn = document.getElementById('tourBtn');
 const pauseNarrationBtn = document.getElementById('pauseNarrationBtn');
 const tourSections = ['hero', 'warehouse', 'yard', 'twin', 'pricing', 'pod', 'close'];
+const TOUR_HERO_HOLD_MS = 2000;
 let tourState = {
   active: false,
   index: -1,
   timeoutId: null,
+  focusTimeoutId: null,
   paused: false,
 };
 
@@ -202,17 +204,32 @@ function clearTourTimer() {
   tourState.timeoutId = null;
 }
 
+function clearTourFocusTimer() {
+  if (!tourState.focusTimeoutId) return;
+  clearTimeout(tourState.focusTimeoutId);
+  tourState.focusTimeoutId = null;
+}
+
 function endTour() {
   clearTourTimer();
-  tourState = { active: false, index: -1, timeoutId: null, paused: false };
+  clearTourFocusTimer();
+  tourState = { active: false, index: -1, timeoutId: null, focusTimeoutId: null, paused: false };
   tourBtn.textContent = 'Play guided tour';
 }
 
 function scheduleTourStep() {
   clearTourTimer();
+  clearTourFocusTimer();
   const activeTourSectionId = tourSections[tourState.index];
   const narrationDurationMs = Math.max((detectNarrative(activeTourSectionId).length / 13) * 1000, TOUR_SECTION_MS);
   const sectionDurationMs = Math.ceil(narrationDurationMs * SECTION_BUFFER_MULTIPLIER);
+  tourState.focusTimeoutId = window.setTimeout(() => {
+    if (!tourState.active || tourState.paused) return;
+    const sectionEl = document.getElementById(activeTourSectionId);
+    const sectionVideo = sectionEl?.querySelector('.showcase-video');
+    if (!sectionVideo) return;
+    sectionVideo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, TOUR_HERO_HOLD_MS);
   tourState.timeoutId = window.setTimeout(() => {
     if (!tourState.active || tourState.paused) return;
     runTourStep();
@@ -238,6 +255,7 @@ function pauseTour() {
   if (!tourState.active) return;
   tourState.paused = true;
   clearTourTimer();
+  clearTourFocusTimer();
 }
 
 function resumeTour() {
@@ -267,7 +285,7 @@ tourBtn.addEventListener('click', () => {
   narrationEnabled = true;
   narrationPausedByUser = false;
   stopNarration();
-  tourState = { active: true, index: -1, timeoutId: null, paused: false };
+  tourState = { active: true, index: -1, timeoutId: null, focusTimeoutId: null, paused: false };
   if (pauseNarrationBtn) pauseNarrationBtn.textContent = 'Pause narration';
   runTourStep();
 });

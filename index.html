@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIonOS x NX Express | Intelligent Logistics Transformation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">A</span>
+      <div>
+        <div class="brand-title">AIonOS × NX Express</div>
+        <div class="brand-sub">Business-outcome demo for logistics transformation</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="tourBtn" class="ghost-btn">Play guided tour</button>
+      <a class="cta-btn" href="#close">Book pilot workshop</a>
+    </div>
+  </header>
+
+  <nav class="side-nav">
+    <a href="#hero">01<br><span>Story</span></a>
+    <a href="#warehouse">02<br><span>Warehouse</span></a>
+    <a href="#yard">03<br><span>Yard</span></a>
+    <a href="#twin">04<br><span>Twin</span></a>
+    <a href="#pricing">05<br><span>Pricing</span></a>
+    <a href="#pod">06<br><span>POD</span></a>
+    <a href="#close">07<br><span>Ask</span></a>
+  </nav>
+
+  <main>
+    <section id="hero" class="panel hero-panel reveal active-panel">
+      <div class="hero-copy">
+        <div class="eyebrow">A seamless logistics story told section by section</div>
+        <h1>From warehouse vision to continuous last‑mile assurance.</h1>
+        <p class="hero-text">
+          This demo shows how AIonOS can help NX Express turn fragmented operational signals into decisive action:
+          industrial engineering in the warehouse, yard control with waiting-time intelligence, real-time network correction,
+          dynamic cargo pricing, and AI-audited proof of delivery.
+        </p>
+        <div class="metric-strip">
+          <div class="metric-card metric-card-highlight">
+            <div class="metric-label">Narrative promise</div>
+            <div class="metric-value">Better service certainty</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Operational lens</div>
+            <div class="metric-value">Vision + agents + twin</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Executive outcome</div>
+            <div class="metric-value">Fewer delays, smarter margin</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual glass">
+        <div class="hero-grid"></div>
+        <div class="hero-flow flow-one"></div>
+        <div class="hero-flow flow-two"></div>
+        <div class="hero-content">
+          <div class="hero-badge">AI agents acting across the logistics value chain</div>
+          <div class="hero-columns">
+            <div>
+              <h3>What NX operations teams see today</h3>
+              <ul>
+                <li>Video feeds, control towers, manual escalations</li>
+                <li>Exceptions discovered after service is already at risk</li>
+                <li>Margin pressure from network inefficiency and idle capacity</li>
+              </ul>
+            </div>
+            <div>
+              <h3>What AIonOS enables instead</h3>
+              <ul>
+                <li>Agents that interpret scenes, queues, ETA risk and proof quality</li>
+                <li>Continuous decisioning from node to network</li>
+                <li>Customer promises protected with measurable business outcomes</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="warehouse" class="panel reveal">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Section 1</div>
+          <h2>Warehouse vision turns AI agents into industrial engineers and safety auditors.</h2>
+        </div>
+        <p>
+          Instead of only watching footage, the agent measures throughput, locates peak-load windows,
+          flags flow imbalance, and watches for unsafe operating patterns before they turn into incidents or missed dispatches.
+        </p>
+      </div>
+      <div class="content-grid two-col">
+        <div class="media-card glass">
+          <div class="media-label">Warehouse computer vision feed</div>
+          <video class="showcase-video" src="assets/videos/warehouse_full.mp4" controls muted loop playsinline></video>
+        </div>
+        <div class="insight-column">
+          <div class="insight-stack">
+            <div class="insight-card glass">
+              <div class="metric-label">Objects tracked</div>
+              <div class="metric-value" id="warehouseObjects">—</div>
+            </div>
+            <div class="insight-card glass">
+              <div class="metric-label">Average throughput</div>
+              <div class="metric-value" id="warehouseAvg">—</div>
+            </div>
+            <div class="insight-card glass">
+              <div class="metric-label">Peak minute</div>
+              <div class="metric-value" id="warehousePeak">—</div>
+            </div>
+          </div>
+          <div class="chart-card glass">
+            <div class="chart-title">Throughput trend with surge windows</div>
+            <canvas id="warehouseChart" width="720" height="280"></canvas>
+          </div>
+          <div class="callout glass">
+            <strong>Why it matters for NX:</strong> agents can recommend labor rebalancing, dock prioritization,
+            and preventive safety interventions while the operation is still recoverable.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="yard" class="panel reveal">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Section 2</div>
+          <h2>Yard vision gives AI agents a live read on idle docks, waiting time, queue buildup, and security risk.</h2>
+        </div>
+        <p>
+          This is where blind spots become visible. The agent sees every inbound movement, estimates congestion,
+          spots trailers stalled too long, and elevates suspicious patterns before they become SLA slips or loss events.
+        </p>
+      </div>
+      <div class="content-grid two-col reverse-mobile">
+        <div class="insight-column">
+          <div class="yard-kpi-row">
+            <div class="insight-card glass">
+              <div class="metric-label">Vehicles observed</div>
+              <div class="metric-value" id="yardVehicles">—</div>
+            </div>
+            <div class="insight-card glass">
+              <div class="metric-label">Estimated avg wait</div>
+              <div class="metric-value" id="yardWait">11.6 min</div>
+            </div>
+            <div class="insight-card glass alert-card">
+              <div class="metric-label">Security watchpoints</div>
+              <div class="metric-value">03 flagged</div>
+            </div>
+          </div>
+          <div class="chart-card glass">
+            <div class="chart-title">Vehicle flow, queue pressure, and dock idling</div>
+            <canvas id="yardChart" width="720" height="280"></canvas>
+          </div>
+          <div class="mini-timeline glass">
+            <div class="timeline-item"><span></span>Dock 04 idle past threshold — agent recommends reassignment.</div>
+            <div class="timeline-item"><span></span>Inbound queue spikes near shift change — auto-notify yard supervisor.</div>
+            <div class="timeline-item"><span></span>Unauthorized linger near gate lane — security workflow triggered.</div>
+          </div>
+        </div>
+        <div class="media-card glass">
+          <div class="media-label">Yard surveillance intelligence</div>
+          <video class="showcase-video" src="assets/videos/yard_view.mp4" controls muted loop playsinline></video>
+        </div>
+      </div>
+    </section>
+
+    <section id="twin" class="panel reveal">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Section 3</div>
+          <h2>An agentic twin corrects disruptions in real time with heuristic rerouting and inventory protection.</h2>
+        </div>
+        <p>
+          When corridors fail, the twin does not just visualize risk. It decides. It recomputes paths, protects service-critical nodes,
+          and shows operations leaders how to recover network stability before customers feel the disruption.
+        </p>
+      </div>
+      <div class="content-grid two-col">
+        <div class="twin-map-card glass">
+          <div class="media-label">India network twin — before vs after correction</div>
+          <div class="twin-stage">
+            <img src="assets/images/india_map.png" alt="India map" class="map-base" />
+            <svg id="twinSvg" viewBox="0 0 800 620" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+        </div>
+        <div class="insight-column">
+          <div class="twin-toggle glass">
+            <button class="toggle-btn active" data-mode="before">Before correction</button>
+            <button class="toggle-btn" data-mode="after">After correction</button>
+          </div>
+          <div class="twin-kpis">
+            <div class="insight-card glass">
+              <div class="metric-label">Delayed / rerouted lanes</div>
+              <div class="metric-value" id="twinDisruptions">—</div>
+            </div>
+            <div class="insight-card glass">
+              <div class="metric-label">Inventory posture</div>
+              <div class="metric-value" id="twinInventory">—</div>
+            </div>
+            <div class="insight-card glass">
+              <div class="metric-label">Service commentary</div>
+              <div class="metric-value small-text" id="twinCommentary">—</div>
+            </div>
+          </div>
+          <div class="chart-card glass">
+            <div class="chart-title">Network health progression</div>
+            <canvas id="twinChart" width="720" height="260"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="panel reveal">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Section 4</div>
+          <h2>An AI pricing agent turns capacity telemetry into dynamic cargo pricing.</h2>
+        </div>
+        <p>
+          If fill is light, the agent pushes discount logic to stimulate demand. As capacity tightens, it protects margin.
+          Every shipment is priced against network reality, not static tariffs.
+        </p>
+      </div>
+      <div class="content-grid two-col reverse-mobile">
+        <div class="insight-column">
+          <div class="pricing-meter glass">
+            <div class="meter-head">
+              <span>Capacity fill</span>
+              <strong id="pricingFill">—</strong>
+            </div>
+            <div class="meter-track"><div id="meterBar" class="meter-bar"></div></div>
+            <div class="meter-scale">
+              <span>Discount zone</span><span>Market zone</span><span>Premium zone</span>
+            </div>
+          </div>
+          <div class="pricing-panels">
+            <div class="insight-card glass">
+              <div class="metric-label">Rate recommendation</div>
+              <div class="metric-value" id="pricingRate">—</div>
+            </div>
+            <div class="insight-card glass">
+              <div class="metric-label">Mode recommendation</div>
+              <div class="metric-value">Capacity-led uplift</div>
+            </div>
+          </div>
+          <div class="chart-card glass">
+            <div class="chart-title">Price curve versus fill ratio</div>
+            <canvas id="pricingChart" width="720" height="260"></canvas>
+          </div>
+          <div class="callout glass">
+            <strong>Business effect:</strong> revenue management becomes continuous, so NX can protect profitability without losing sight of service commitments.
+          </div>
+        </div>
+        <div class="media-card glass">
+          <div class="media-label">Loading telemetry driving pricing logic</div>
+          <video class="showcase-video" src="assets/videos/truck_loading.mp4" controls muted loop playsinline></video>
+        </div>
+      </div>
+    </section>
+
+    <section id="pod" class="panel reveal">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Section 5</div>
+          <h2>The last mile is audited continuously by an AI POD validator.</h2>
+        </div>
+        <p>
+          The final proof is not just a photo. The agent validates the recipient, the location, and the integrity of proof,
+          reducing disputes and making delivery confirmation trustworthy at scale.
+        </p>
+      </div>
+      <div class="content-grid pod-grid">
+        <div class="media-card glass wide-card">
+          <div class="media-label">Proof-of-delivery field clip</div>
+          <video class="showcase-video" src="assets/videos/demo_delivery_clip.mp4" controls muted loop playsinline></video>
+        </div>
+        <div class="pod-side">
+          <div class="reference-grid">
+            <div class="reference-card glass">
+              <div class="metric-label">Reference recipient</div>
+              <img src="assets/images/reference_recipient.jpg" alt="Reference recipient" />
+            </div>
+            <div class="reference-card glass">
+              <div class="metric-label">Reference location</div>
+              <img src="assets/images/reference_location.jpg" alt="Reference location" />
+            </div>
+          </div>
+          <div class="validation-card glass">
+            <div class="validation-header">
+              <span>AI audit verdict</span>
+              <strong class="pass-pill">PASS WITH GEO MATCH</strong>
+            </div>
+            <div class="validation-grid">
+              <div><small>Recipient match</small><strong>96%</strong></div>
+              <div><small>Location confidence</small><strong>93%</strong></div>
+              <div><small>Geofence variance</small><strong>118 m</strong></div>
+              <div><small>Claim review risk</small><strong>Low</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="close" class="panel reveal close-panel">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Section 6</div>
+          <h2>What this means for NX Express.</h2>
+        </div>
+        <p>
+          Warehouse agents improve flow and safety. Yard agents compress waiting time and surface risk. The network twin protects service continuity.
+          Pricing agents defend margin. POD agents close the loop on delivery truth. Together, AIonOS turns logistics operations into an intelligent, self-correcting system.
+        </p>
+      </div>
+      <div class="outcome-band glass">
+        <div class="outcome-card"><span>1</span>Faster node decisions</div>
+        <div class="outcome-card"><span>2</span>More reliable customer promises</div>
+        <div class="outcome-card"><span>3</span>Margin protection under volatility</div>
+        <div class="outcome-card"><span>4</span>Continuous auditability</div>
+      </div>
+      <div class="final-ask glass">
+        <div>
+          <div class="eyebrow">Clear ask</div>
+          <h3>Launch a 10-week pilot across one warehouse, one yard, one network flow, and one last-mile lane.</h3>
+          <p>
+            Define the baseline, instrument the operating points, and measure time-to-decision, queue reduction, ETA recovery,
+            pricing uplift, and POD dispute reduction. Leave the first workshop with a scoped start date.
+          </p>
+        </div>
+        <a href="mailto:?subject=AIonOS%20x%20NX%20Express%20Pilot&body=Let's%20schedule%20the%2010-week%20pilot%20workshop." class="cta-btn large">Schedule the pilot in the next two weeks</a>
+      </div>
+    </section>
+  </main>
+
+  <div class="caption-rail glass" id="captionRail">
+    <div class="caption-label">Narration cue</div>
+    <div id="captionText">AIonOS helps NX move from watching operations to orchestrating them.</div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

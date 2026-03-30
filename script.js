@@ -67,7 +67,10 @@ function speakNarrative(id) {
 }
 
 function updateCaptionAndNarration(id) {
-  document.getElementById('captionText').textContent = detectNarrative(id);
+  const captionTextEl = document.getElementById('captionText');
+  if (captionTextEl) {
+    captionTextEl.textContent = detectNarrative(id);
+  }
   speakNarrative(id);
 }
 
